@@ -1,0 +1,42 @@
+name: PostgreSQL Service Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:11
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U testuser"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Wait for PostgreSQL service
+        run: |
+          echo "Waiting for PostgreSQL to be ready..."
+          until nc -z localhost 5432; do
+            echo "PostgreSQL is unavailable, waiting..."
+            sleep 1
+          done
+          echo "PostgreSQL is ready!"
+
+      - name: Verify PostgreSQL service
+        run: |
+          psql "postgresql://testuser:testpassword@localhost:5432/testdb" -c '\l'
